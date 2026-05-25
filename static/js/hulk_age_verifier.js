@@ -1,5 +1,5 @@
 ﻿function hulkAVIsValidRegion(regionals, is_restricted_region = false, data = {}, popup_setting = {}){
-	var shop = Shopify.shop
+	var shop = window.Shopify && Shopify.shop ? Shopify.shop : "sexdollpartner.myshopify.com";
 	var xhttp = new XMLHttpRequest();
 	
 	xhttp.onreadystatechange = function() {
@@ -135,7 +135,7 @@ function hulkAVSetPopup(popup_setting, plan_features, regionals, min_age, verifi
 
 			//multiple language translation logic
 			const langSettings = window.language_settings || {};
-			const shopifyLocale = Shopify.locale || 'en';
+			const shopifyLocale = (window.Shopify && Shopify.locale) || 'en';
 
 			const headerText = getTranslatedText('header_text', popup_setting, langSettings, shopifyLocale);
 			const subHeaderText = getTranslatedText('sub_header_text', popup_setting, langSettings, shopifyLocale);
@@ -456,7 +456,8 @@ function hulkAVSetPopup(popup_setting, plan_features, regionals, min_age, verifi
 				btn.addEventListener('click', function() {
 					let login_type = this.getAttribute('data')
 					const currentURL = window.location.href.split('?')[0];
-					window.location.assign(`https://age-verification.hulkapps.com/social_media_login?shop=${Shopify.shop}&login_type=${login_type}&redirect_url=${currentURL}`);
+					const shop = window.Shopify && Shopify.shop ? Shopify.shop : "sexdollpartner.myshopify.com";
+					window.location.assign(`https://age-verification.hulkapps.com/social_media_login?shop=${shop}&login_type=${login_type}&redirect_url=${currentURL}`);
 					hulkSetCookie(login_type, true, 1)
 				});
 			});
@@ -481,13 +482,23 @@ function hulkAVSetPopup(popup_setting, plan_features, regionals, min_age, verifi
 			}
 
 			function ajaxRequest(verified_status, verifier_cookie){
-				var shop = Shopify.shop
+				var shop = window.Shopify && Shopify.shop ? Shopify.shop : "sexdollpartner.myshopify.com";
 				document.body.classList.remove("cus_overflow");
+				
+				if (verified_status && verifier_cookie) {
+					document.getElementById("hulk_age_verify").style.display = "none";
+					hulkSetCookie('hulkVerifiedClick', 'clicked', popup_setting.cookie_lifetime);
+				} else if (!verified_status) {
+					if (popup_setting.exit_url) {
+						window.location.assign(popup_setting.exit_url);
+					}
+					return;
+				}
+				
 				var xhttp = new XMLHttpRequest();
 				xhttp.open("POST", "https://age-verification.hulkapps.com/api/create_verification",true);
 
 				xhttp.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
-				//xhttp.setRequestHeader("Authorization", data.auth_token)
 				xhttp.send('shop='+shop+'&verified_status='+verified_status+'&verifier_cookie='+verifier_cookie+'');
 				xhttp.onreadystatechange = function() {
 					if (this.readyState == 4 && this.status == 200) {
@@ -495,10 +506,6 @@ function hulkAVSetPopup(popup_setting, plan_features, regionals, min_age, verifi
 						var params = res.params;
 						if (params.verified_status == "false"){
 							window.location.assign(popup_setting.exit_url);
-						}
-						if(params.verifier_cookie == 'true'){
-							document.getElementById("hulk_age_verify").style.display = "none";
-							hulkSetCookie('hulkVerifiedClick', 'clicked', popup_setting.cookie_lifetime );
 						}
 					}
 				};
@@ -534,7 +541,7 @@ function hulkAVSetPopup(popup_setting, plan_features, regionals, min_age, verifi
 }
 
 function hulkAVGetPopupRequest(){
-	var shop = Shopify.shop
+	var shop = window.Shopify && Shopify.shop ? Shopify.shop : "sexdollpartner.myshopify.com";
 	var xhttp = new XMLHttpRequest();
 		
 		xhttp.onreadystatechange = function() {
@@ -558,7 +565,8 @@ function hulkSetCookie(cname, cvalue, exdays) {
 	var d = new Date();
 	d.setTime(d.getTime() + (exdays*24*60*60*1000));
 	var expires = "expires="+ d.toUTCString();
-	document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/; samesite=none; secure";
+	var secureFlag = window.location.protocol === "https:" ? ";secure" : "";
+	document.cookie = cname + "=" + cvalue + ";" + expires + ";path=/; samesite=lax" + secureFlag;
 }
 
 function hulkGetCookie(cname) {
@@ -582,35 +590,41 @@ function deleteCookie(cookieName) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-	if (hulkGetCookie("google_login") || hulkGetCookie("facebook_login") || hulkGetCookie('hulkVerifiedClick') == ''){
-		const urlSearchParams = new URLSearchParams(window.location.search);
-		const searchParams = Object.fromEntries(urlSearchParams.entries());
-		const searchKey = 'hulk_valid_age';
-		if (searchKey in searchParams){
-			if(searchParams[searchKey]=='true'){
-				hulkSetCookie('hulkVerifiedClick', 'clicked', parseInt(searchParams['life']));
-			}
-			else if(searchParams[searchKey]=='false'){
-				setTimeout(function() {
-					document.getElementById("av-failed").style.display = "block";
-				}, 500); 
-			}
+	console.log("DOMContentLoaded triggered");
+	console.log("hulkVerifiedClick cookie:", hulkGetCookie('hulkVerifiedClick'));
+	console.log("window.popup_data exists:", !!window.popup_data);
+	
+	const urlSearchParams = new URLSearchParams(window.location.search);
+	const searchParams = Object.fromEntries(urlSearchParams.entries());
+	const searchKey = 'hulk_valid_age';
+	
+	if (searchKey in searchParams){
+		if(searchParams[searchKey]=='true'){
+			hulkSetCookie('hulkVerifiedClick', 'clicked', parseInt(searchParams['life']));
 		}
-		deleteCookie('google_login');
-		deleteCookie('facebook_login');
+		else if(searchParams[searchKey]=='false'){
+			setTimeout(function() {
+				document.getElementById("av-failed").style.display = "block";
+			}, 500); 
+		}
 	}
+	deleteCookie('google_login');
+	deleteCookie('facebook_login');
 
-	if(window.popup_data){
+	if(hulkGetCookie('hulkVerifiedClick') == '' && window.popup_data){
+		console.log("Creating popup...");
 		const data = window.popup_data
 		if(data.have_any_plan && data.is_enabled){
 			if (data.popup_setting.selected_country_popup){
-				if(hulkGetCookie('hulkVerifiedClick')== '')
-					hulkAVIsValidRegion(data.regionals, true, data, {})
+				hulkAVIsValidRegion(data.regionals, true, data, {})
 			} else{
 				hulkAVSetPopup(data.popup_setting, data.plan_features, data.regionals, data.min_age, data.verification_option)
 			}
 		}
-	} else {
+	} else if (hulkGetCookie('hulkVerifiedClick') == ''){
+		console.log("Fetching popup data...");
 		hulkAVGetPopupRequest();
+	} else {
+		console.log("User already verified, skipping popup");
 	}
 });
