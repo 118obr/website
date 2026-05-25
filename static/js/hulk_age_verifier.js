@@ -581,45 +581,36 @@ function deleteCookie(cookieName) {
   document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 }
 
-if (hulkGetCookie("google_login") || hulkGetCookie("facebook_login" || hulkGetCookie('hulkVerifiedClick')== '')){
-	const urlSearchParams = new URLSearchParams(window.location.search);
-	const searchParams = Object.fromEntries(urlSearchParams.entries());
-	const searchKey = 'hulk_valid_age';
-	if (searchKey in searchParams){
-		if(searchParams[searchKey]=='true'){
-			//document.getElementById("hulk_age_verify").style.display = "none";
-			hulkSetCookie('hulkVerifiedClick', 'clicked', parseInt(searchParams['life']) );
+document.addEventListener('DOMContentLoaded', function() {
+	if (hulkGetCookie("google_login") || hulkGetCookie("facebook_login") || hulkGetCookie('hulkVerifiedClick') == ''){
+		const urlSearchParams = new URLSearchParams(window.location.search);
+		const searchParams = Object.fromEntries(urlSearchParams.entries());
+		const searchKey = 'hulk_valid_age';
+		if (searchKey in searchParams){
+			if(searchParams[searchKey]=='true'){
+				hulkSetCookie('hulkVerifiedClick', 'clicked', parseInt(searchParams['life']));
+			}
+			else if(searchParams[searchKey]=='false'){
+				setTimeout(function() {
+					document.getElementById("av-failed").style.display = "block";
+				}, 500); 
+			}
 		}
-		else if(searchParams[searchKey]=='false'){
-			setTimeout(function() {
-				document.getElementById("av-failed").style.display = "block";
-			}, 500); 
-		}
+		deleteCookie('google_login');
+		deleteCookie('facebook_login');
 	}
-	deleteCookie('google_login');
-	deleteCookie('facebook_login');
-}
 
-if(window.popup_data){
-	const data = window.popup_data
-	if(data.have_any_plan && data.is_enabled){
-		if (data.popup_setting.selected_country_popup){
-			// $.get("https://ipinfo.io", function(response) {
-			//     console.log(response.city, response.country);
-			// }, "jsonp");
-			// fetch('https://api.ipregistry.co/?key=tryout')
-			    // .then(function (response) {
-			    //     return response.json();
-			    // })
-			    // .then(function (payload) {
-			    //     console.log(payload.location.country.code);
-			    // });
-			if(hulkGetCookie('hulkVerifiedClick')== '')
-				hulkAVIsValidRegion(data.regionals, true, data, {})
-		} else{
-			hulkAVSetPopup(data.popup_setting, data.plan_features, data.regionals, data.min_age, data.verification_option)
+	if(window.popup_data){
+		const data = window.popup_data
+		if(data.have_any_plan && data.is_enabled){
+			if (data.popup_setting.selected_country_popup){
+				if(hulkGetCookie('hulkVerifiedClick')== '')
+					hulkAVIsValidRegion(data.regionals, true, data, {})
+			} else{
+				hulkAVSetPopup(data.popup_setting, data.plan_features, data.regionals, data.min_age, data.verification_option)
+			}
 		}
+	} else {
+		hulkAVGetPopupRequest();
 	}
-} else {
-	hulkAVGetPopupRequest();
-}
+});
